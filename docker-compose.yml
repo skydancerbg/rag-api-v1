@@ -1,14 +1,17 @@
-# docker-compose.yml v1
-version: "3.9"
-
+# docker-compose.yml v1 (corrected for GitHub + Portainer)
 services:
   rag-api:
-    build: .
     container_name: rag-api
-    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "5005:5005"
+      - "5005:5005"                       # rag-api listens on 5005
+    volumes:
+      - ./rag-api:/app/rag_api:ro         # project files inside container
+      - /mnt/ai-rag-files:/mnt/ai-rag-files:ro  # NFS documents
     environment:
+      # External services (already running in your setup)
       - QDRANT_URL=http://10.100.10.2:6333
       - COLLECTION_NAME=documents
       - DOC_PATH=/mnt/ai-rag-files
@@ -17,7 +20,11 @@ services:
       - TOP_K=5
       - CHUNK_SIZE=500
       - INGEST_INTERVAL_MIN=10
-    volumes:
-      - /mnt/ai-rag-files:/mnt/ai-rag-files:ro
-      - ./rag_api:/app/rag_api:ro
-    depends_on: []
+      # Runtime tuning
+      - UVICORN_WORKERS=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sSf http://localhost:5005/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
