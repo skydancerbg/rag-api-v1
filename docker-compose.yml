@@ -1,17 +1,18 @@
-# docker-compose.yml v1 (corrected for GitHub + Portainer)
+# docker-compose.yml v1 (Portainer + GitHub compatible)
+
 services:
   rag-api:
     container_name: rag-api
     build:
-      context: .
+      context: ./            # Portainer clones repo into this directory
       dockerfile: Dockerfile
     ports:
-      - "5005:5005"                       # rag-api listens on 5005
+      - "5005:5005"
     volumes:
-      - ./rag-api:/app/rag_api:ro         # project files inside container
-      - /mnt/ai-rag-files:/mnt/ai-rag-files:ro  # NFS documents
+      # IMPORTANT: Portainer keeps repo folder name!
+      - ./rag-api-v1/rag-api:/app/rag_api:ro
+      - /mnt/ai-rag-files:/mnt/ai-rag-files:ro
     environment:
-      # External services (already running in your setup)
       - QDRANT_URL=http://10.100.10.2:6333
       - COLLECTION_NAME=documents
       - DOC_PATH=/mnt/ai-rag-files
@@ -20,7 +21,6 @@ services:
       - TOP_K=5
       - CHUNK_SIZE=500
       - INGEST_INTERVAL_MIN=10
-      # Runtime tuning
       - UVICORN_WORKERS=1
     restart: unless-stopped
     healthcheck:
