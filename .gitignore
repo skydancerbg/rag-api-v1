@@ -1,0 +1,20 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+rag-venv/
+venv/
+
+# Container working dir
+/app/
+
+# Local documents (NFS mounts)
+/mnt/ai-rag-files/
+
+# Environment files / secrets
+.env
+
+NOTES.TXT

@@ -1,0 +1,23 @@
+# docker-compose.yml v1
+version: "3.9"
+
+services:
+  rag-api:
+    build: .
+    container_name: rag-api
+    restart: unless-stopped
+    ports:
+      - "5005:5005"
+    environment:
+      - QDRANT_URL=http://10.100.10.2:6333
+      - COLLECTION_NAME=documents
+      - DOC_PATH=/mnt/ai-rag-files
+      - OLLAMA_URL=http://10.10.10.5:11434
+      - OLLAMA_MODEL=gpt-oss:20b
+      - TOP_K=5
+      - CHUNK_SIZE=500
+      - INGEST_INTERVAL_MIN=10
+    volumes:
+      - /mnt/ai-rag-files:/mnt/ai-rag-files:ro
+      - ./rag_api:/app/rag_api:ro
+    depends_on: []

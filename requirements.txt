@@ -1,0 +1,14 @@
+# requirements.txt v1
+fastapi
+uvicorn[standard]
+sse-starlette
+qdrant-client
+sentence-transformers
+PyMuPDF
+python-docx
+python-pptx
+beautifulsoup4
+requests
+APScheduler
+pytesseract
+Pillow
