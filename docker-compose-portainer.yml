@@ -1,11 +1,11 @@
-# docker-compose-portainer.yml v1.2.9
-# Description: Portainer stack for rag-api v1.2.9; only image tag updated
+# docker-compose-portainer.yml v1.2.11
+# Description: Portainer stack for rag-api v1.2.11; fixed /docs issue to allow build; keeps mounted config and NFS docs
 
 version: "3.9"
 
 services:
   rag-api:
-    image: ghcr.io/skydancerbg/rag-api:v1.2.9
+    image: ghcr.io/skydancerbg/rag-api:v1.2.11
     container_name: rag-api
     ports:
       - "5005:5005"
