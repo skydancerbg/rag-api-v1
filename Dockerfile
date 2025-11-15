@@ -37,3 +37,4 @@ ENV CHUNK_WORDS=500
 
 # Start API
 CMD ["uvicorn", "rag_api.main:app", "--host", "0.0.0.0", "--port", "5005"]
+#
