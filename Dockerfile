@@ -1,5 +1,5 @@
-# Dockerfile v1.2.7
-# Description: Remove non-existent /docs COPY to fix GHCR build. Base: v1.1.5
+# Dockerfile v1.2.8
+# Description: Removed /docs and /config COPY to fix GHCR build. Base: v1.1.5
 
 FROM python:3.11-slim
 
@@ -16,16 +16,15 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy project files from repo root (keep exact paths from v1.1.5)
+# Copy project files from repo root
 COPY rag-api /app/rag_api
-COPY config /app/config
 COPY requirements.txt /app/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Environment variables (from v1.1.5)
+# Environment variables
 ENV DOC_PATH=/mnt/ai-rag-files
 ENV QDRANT_URL=http://10.100.10.2:6333
 ENV COLLECTION_NAME=documents
