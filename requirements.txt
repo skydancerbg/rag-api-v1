@@ -1,23 +1,15 @@
+# requirements.txt v1.2.7
+# Description: Added Ollama and Qdrant dependencies
+
 fastapi
-uvicorn[standard]
-
-qdrant-client
-
-pydantic
+uvicorn
+requests
 python-multipart
-
-pypdf2
+pydantic
+qdrant-client
 python-docx
 python-pptx
+PyPDF2
 beautifulsoup4
-
-langdetect
-fastlangid
-fasttext-wheel
-
 sentence-transformers
-numpy
-tqdm
-
-requests
 ollama
