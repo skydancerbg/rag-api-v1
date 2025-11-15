@@ -1,5 +1,5 @@
-# Version: v1.2.1
-# Description: Only updated image tag for v1.2.1; all else identical to v1.2.0
+# Version: v1.2.2
+# Description: Only updated image tag for v1.2.2; all else identical to v1.2.1
 
 services:
   rag-api:
@@ -7,7 +7,7 @@ services:
     build:
       context: ./            # Portainer clones the repo into this directory
       dockerfile: Dockerfile
-    image: ghcr.io/skydancerbg/rag-api:v1.2.1
+    image: ghcr.io/skydancerbg/rag-api:v1.2.2
     pull_policy: if_not_present
     ports:
       - "5005:5005"
