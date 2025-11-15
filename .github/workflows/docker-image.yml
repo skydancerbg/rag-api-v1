@@ -1,11 +1,10 @@
-# .github/workflows/docker-image.yml  (v1.1)
+# Version: v1.1 (no code changes, just for reference)
 name: Build and publish rag-api image
 
 on:
   push:
-    branches: [ "main" ]
     tags:
-      - 'v*'            # will run on git tags like v1.1
+      - 'v*'            # run only on version tags
   workflow_dispatch:
 
 permissions:
