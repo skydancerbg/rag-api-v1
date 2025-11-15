@@ -1,9 +1,11 @@
-# .github/workflows/docker-image.yml v1
+# .github/workflows/docker-image.yml  (v1.1)
 name: Build and publish rag-api image
 
 on:
   push:
     branches: [ "main" ]
+    tags:
+      - 'v*'            # will run on git tags like v1.1
   workflow_dispatch:
 
 permissions:
@@ -34,4 +36,6 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ghcr.io/skydancerbg/rag-api:latest
+          tags: |
+            ghcr.io/skydancerbg/rag-api:latest
+            ghcr.io/skydancerbg/rag-api:${{ github.ref_name }}
