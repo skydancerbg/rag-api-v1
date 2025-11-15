@@ -1,67 +1,128 @@
-# ingest_module.py v1
-from pathlib import Path
+# rag-api v1.1.5 — ingest_module.py
+# Purpose: minimal, reliable ingestion and listing functions so the API is operational.
+# - deterministic UUID5 point ids based on file path to avoid duplicates
+# - uses 384-dim zero vectors (placeholder) so Qdrant upserts succeed immediately
+# - functions: ingest_docs(), list_docs(), ask_query()
+# Note: Replace vector generation with real embeddings later.
+
 import os
 import uuid
-from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams
-from .embeddings import embed_text
-from .utils import extract_text
-from typing import List
+import time
+import json
+from pathlib import Path
+import requests
 
+DOC_PATH = os.getenv("DOC_PATH", "/mnt/ai-rag-files")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://10.100.10.2:6333")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "documents")
-DOC_PATH = os.getenv("DOC_PATH", "/mnt/ai-rag-files")
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 500))
+VECTOR_DIM = int(os.getenv("VECTOR_DIM", "384"))
 
-client = QdrantClient(url=QDRANT_URL)
+# helper: deterministic uuid5 from path
+UUID_NAMESPACE = uuid.UUID("12345678-1234-5678-1234-567812345678")
 
-def ensure_collection(dim=384):
-    cols = client.get_collections().collections
-    names = [c.name for c in cols]
-    if COLLECTION_NAME not in names:
-        client.create_collection(
-            collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=dim, distance="Cosine")
-        )
+def _file_id(path: str):
+    """Deterministic UUID from file path (string)."""
+    return str(uuid.uuid5(UUID_NAMESPACE, path))
 
-def chunk_text(text: str, size: int = CHUNK_SIZE) -> List[str]:
-    words = text.split()
-    if not words:
-        return []
-    chunks = []
-    for i in range(0, len(words), size):
-        chunks.append(" ".join(words[i:i+size]))
-    return chunks
+def _zero_vector():
+    return [0.0] * VECTOR_DIM
 
-def upsert_points(points):
-    # qdrant-client will accept list of dicts with id, vector, payload
-    client.upsert(collection_name=COLLECTION_NAME, points=points)
+def _qdrant_upsert_point(point_id: str, vector, payload: dict):
+    url = f"{QDRANT_URL}/collections/{COLLECTION_NAME}/points"
+    body = {"points": [{"id": point_id, "vector": vector, "payload": payload}]}
+    resp = requests.put(url, json=body, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
 
-def ingest_documents():
-    ensure_collection()
-    base = Path(DOC_PATH)
-    files = list(base.rglob("*"))
-    print(f"[ingest] found {len(files)} entries under {DOC_PATH}")
-    ingested_files = 0
-    for f in files:
-        if not f.is_file():
-            continue
-        try:
-            text = extract_text(f)
-            if not text or not text.strip():
+def _ensure_collection():
+    # Try to create collection if missing (384 dim by default)
+    url = f"{QDRANT_URL}/collections/{COLLECTION_NAME}"
+    resp = requests.get(url, timeout=5)
+    if resp.status_code == 200:
+        return True
+    # create
+    body = {
+        "vectors": {"size": VECTOR_DIM, "distance": "Cosine"},
+    }
+    resp = requests.put(f"{QDRANT_URL}/collections/{COLLECTION_NAME}", json=body, timeout=10)
+    resp.raise_for_status()
+    return True
+
+def ingest_docs() -> list:
+    """
+    Scan DOC_PATH for files and upsert them into Qdrant.
+    Returns list of ingested file names (new or updated).
+    Deterministic IDs prevent duplicates.
+    """
+    _ensure_collection()
+    docs = []
+    p = Path(DOC_PATH)
+    if not p.exists():
+        return {"error": f"documents path not found: {DOC_PATH}"}
+    for f in p.rglob("*"):
+        if f.is_file():
+            try:
+                rel = str(f.resolve())
+                pid = _file_id(rel)
+                stat = f.stat()
+                payload = {
+                    "path": rel,
+                    "name": f.name,
+                    "size": stat.st_size,
+                    "mtime": int(stat.st_mtime),
+                }
+                # Use zero vector placeholder — replace with embeddings later
+                vec = _zero_vector()
+                _qdrant_upsert_point(pid, vec, payload)
+                docs.append(rel)
+            except Exception as e:
+                # do not abort whole ingestion on single file error
+                print("ingest_docs: error for", str(f), repr(e))
                 continue
-            chunks = chunk_text(text)
-            vectors = embed_text(chunks)
-            points = []
-            for idx, (chunk, vector) in enumerate(zip(chunks, vectors)):
-                # deterministic ID per file + chunk
-                point_id = f"{uuid.uuid5(uuid.NAMESPACE_URL, str(f))}-{idx}"
-                payload = {"text": chunk, "source_file": str(f.name), "chunk_id": idx}
-                points.append({"id": point_id, "vector": vector, "payload": payload})
-            # upload in batch
-            upsert_points(points)
-            ingested_files += 1
-            print(f"[ingest] ingested {f.name} ({len(chunks)} chunks)")
-        except Exception as e:
-            print(f"[ingest] failed {f.name}: {e}")
-    print(f"[ingest] complete. files ingested: {ingested_files}")
+    return docs
+
+def list_docs(limit: int = 100):
+    """
+    Return a list of payloads from Qdrant (up to limit).
+    """
+    url = f"{QDRANT_URL}/collections/{COLLECTION_NAME}/points/scroll"
+    body = {"limit": limit, "with_vector": False, "with_payload": True}
+    resp = requests.post(url, json=body, timeout=30)
+    if resp.status_code != 200:
+        return {"error": f"qdrant scroll failed: {resp.status_code}"}
+    data = resp.json()
+    # data.result.points maybe in v1.15+; support both shapes
+    points = data.get("result", {}).get("points") or data.get("result") or data.get("points") or data
+    # normalize safe return
+    items = []
+    # If response is list-like
+    if isinstance(points, list):
+        for p in points:
+            items.append({"id": p.get("id"), "payload": p.get("payload")})
+    else:
+        # fallback: try data["result"]["points"]
+        res_points = data.get("result", {}).get("points", [])
+        for p in res_points:
+            items.append({"id": p.get("id"), "payload": p.get("payload")})
+    return items
+
+def ask_query(query: str):
+    """
+    Minimal placeholder for ask: returns top-K text matches from Qdrant payloads.
+    This does NOT call Ollama embeddings — it's a simple nearest-by-payload fallback.
+    Replace with proper embedding+LLM prompt chain later.
+    """
+    # We will return simple hits by scanning payloads for query substring in filename.
+    hits = []
+    all_docs = list_docs(limit=500)
+    q = query.lower()
+    for item in all_docs:
+        payload = item.get("payload") or {}
+        name = (payload.get("name") or "").lower()
+        path = (payload.get("path") or "").lower()
+        if q in name or q in path:
+            hits.append({"id": item.get("id"), "payload": payload})
+    # If no hits, return a friendly message
+    if not hits:
+        return {"answer": "No local documents matched your query yet."}
+    return {"hits": hits}

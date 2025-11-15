@@ -1,18 +1,22 @@
-# docker-compose.yml v1 (Portainer + GitHub compatible)
+# docker-compose.yml v1.1.5 (Portainer + GitHub compatible)
 
 services:
   rag-api:
     container_name: rag-api
     build:
-      context: ./            # Portainer clones repo into this directory
+      context: ./            # Portainer clones the repo into this directory
       dockerfile: Dockerfile
+    image: ghcr.io/skydancerbg/rag-api:v1.1.5
+    pull_policy: if_not_present
     ports:
-      - "5005:5005"
+      - "5005:5005"          # FastAPI listens on 5005
     volumes:
-      # IMPORTANT: Portainer keeps repo folder name!
+      # Project files inside container (read-only)
       - ./rag-api-v1/rag-api:/app/rag_api:ro
+      # NFS documents (read-only)
       - /mnt/ai-rag-files:/mnt/ai-rag-files:ro
     environment:
+      # External services
       - QDRANT_URL=http://10.100.10.2:6333
       - COLLECTION_NAME=documents
       - DOC_PATH=/mnt/ai-rag-files
@@ -21,10 +25,11 @@ services:
       - TOP_K=5
       - CHUNK_SIZE=500
       - INGEST_INTERVAL_MIN=10
+      # Runtime tuning
       - UVICORN_WORKERS=1
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sSf http://localhost:5005/ || exit 1"]
+      test: ["CMD-SHELL", "curl -sSf http://localhost:5005/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
