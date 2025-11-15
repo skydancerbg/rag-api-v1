@@ -1,4 +1,5 @@
-# docker-compose.yml v1.1.5 (Portainer + GitHub compatible)
+# Version: v1.2.0
+# Description: Only updated image tag for v1.2.0, everything else unchanged from v1.1.5
 
 services:
   rag-api:
@@ -6,7 +7,7 @@ services:
     build:
       context: ./            # Portainer clones the repo into this directory
       dockerfile: Dockerfile
-    image: ghcr.io/skydancerbg/rag-api:v1.1.5
+    image: ghcr.io/skydancerbg/rag-api:v1.2.0
     pull_policy: if_not_present
     ports:
       - "5005:5005"          # FastAPI listens on 5005

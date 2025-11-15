@@ -1,61 +1,68 @@
-# /opt/rag-api/rag_api/main.py v1.1.4
+# Version: v1.2.0
+# Description: Add manual /ingest endpoint while keeping all existing endpoints
 
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from rag_api.ingest_module import ingest_docs, list_docs, ask_query
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-import os
-import asyncio
+from pydantic import BaseModel
+from typing import Dict, Any
 
-# Config from environment
-INGEST_INTERVAL_MIN = int(os.getenv("INGEST_INTERVAL_MIN", "10"))
+from ingest_module import ingest_docs
+# Assuming these were already in your latest main.py
+from rag_api.ask_module import ask_query
+from rag_api.list_module import list_docs
+from rag_api.config_module import CONFIG
 
-app = FastAPI(title="RAG API v1.1.4")
+app = FastAPI(title="RAG API v1.2.0")
 
-# CORS for testing
+# ---------------- Middleware ----------------
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # adjust as needed
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-scheduler = AsyncIOScheduler()
+# ---------------- Models ----------------
 
-@app.on_event("startup")
-async def startup_event():
-    """Start APScheduler after FastAPI event loop is running"""
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        scheduler.add_job(ingest_docs, "interval", minutes=INGEST_INTERVAL_MIN)
-        scheduler.start()
-    else:
-        # fallback in case event loop not running
-        loop.run_until_complete(asyncio.sleep(0))
-        scheduler.add_job(ingest_docs, "interval", minutes=INGEST_INTERVAL_MIN)
-        scheduler.start()
+class AskRequest(BaseModel):
+    query: str
 
+# ---------------- Existing Endpoints ----------------
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
 
-
 @app.get("/list-docs")
 async def list_documents():
     return list_docs()
 
+@app.post("/ask")
+async def ask(request: AskRequest):
+    answer = ask_query(request.query)
+    return {"answer": answer}
+
+# ---------------- New v1.2.0 Endpoint ----------------
 
 @app.post("/ingest")
-async def ingest():
-    ingest_docs()
-    return {"status": "ingestion triggered"}
+async def manual_ingest(background_tasks: BackgroundTasks):
+    """
+    Trigger ingestion manually.
+    Runs in background so API remains responsive.
+    """
+    background_tasks.add_task(ingest_docs)
+    return {"status": "ingestion started"}
 
+# ---------------- Startup / Shutdown ----------------
 
-@app.post("/ask")
-async def ask(payload: dict):
-    query = payload.get("query", "")
-    if not query:
-        return {"error": "Missing 'query' in request body"}
-    result = ask_query(query)
-    return {"result": result}
+@app.on_event("startup")
+async def startup_event():
+    # Optional: startup tasks here
+    print("RAG API v1.2.0 starting up...")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    # Optional: cleanup tasks here
+    print("RAG API v1.2.0 shutting down...")

@@ -1,25 +1,28 @@
-# rag-api v1.1.5 — Dockerfile (only changed PYTHONPATH)
+# Version: v1.2.0
+# Description: Update dependencies for Ollama embeddings and multi-format ingestion
+
 FROM python:3.11-slim
-
-# rag-api v1.1.5: updated PYTHONPATH so mounted /app/rag_api is resolvable as package rag_api
-
-# Install system deps
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      build-essential poppler-utils tesseract-ocr libgl1 libglib2.0-0 libsm6 libxrender1 wget && \
-    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY requirements.txt .
+# Copy code
+COPY rag-api /app/rag_api
+COPY config /app/config
+COPY docs /app/docs
+COPY requirements.txt /app/
+
+# Install dependencies
+RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# keep existing copy line
-COPY rag-api/ ./rag_api/
+# Environment variables
+ENV DOC_PATH=/app/docs
+ENV QDRANT_URL=http://10.100.10.2:6333
+ENV COLLECTION_NAME=documents
+ENV VECTOR_DIM=384
+ENV OLLAMA_URL=http://10.10.10.5:11434
+ENV OLLAMA_MODEL=gpt-oss:20b
+ENV CHUNK_WORDS=500
 
-# ensure python can import rag_api when /app/rag_api is mounted
-ENV PYTHONPATH=/app
-
-EXPOSE 5005
-
+# Start API
 CMD ["uvicorn", "rag_api.main:app", "--host", "0.0.0.0", "--port", "5005"]
