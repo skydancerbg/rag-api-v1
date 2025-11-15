@@ -1,5 +1,5 @@
-# Version: v1.2.0
-# Description: Only updated image tag for v1.2.0, everything else unchanged from v1.1.5
+# Version: v1.2.1
+# Description: Only updated image tag for v1.2.1; all else identical to v1.2.0
 
 services:
   rag-api:
@@ -7,17 +7,14 @@ services:
     build:
       context: ./            # Portainer clones the repo into this directory
       dockerfile: Dockerfile
-    image: ghcr.io/skydancerbg/rag-api:v1.2.0
+    image: ghcr.io/skydancerbg/rag-api:v1.2.1
     pull_policy: if_not_present
     ports:
-      - "5005:5005"          # FastAPI listens on 5005
+      - "5005:5005"
     volumes:
-      # Project files inside container (read-only)
       - ./rag-api-v1/rag-api:/app/rag_api:ro
-      # NFS documents (read-only)
       - /mnt/ai-rag-files:/mnt/ai-rag-files:ro
     environment:
-      # External services
       - QDRANT_URL=http://10.100.10.2:6333
       - COLLECTION_NAME=documents
       - DOC_PATH=/mnt/ai-rag-files
@@ -26,7 +23,6 @@ services:
       - TOP_K=5
       - CHUNK_SIZE=500
       - INGEST_INTERVAL_MIN=10
-      # Runtime tuning
       - UVICORN_WORKERS=1
     restart: unless-stopped
     healthcheck:

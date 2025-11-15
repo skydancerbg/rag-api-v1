@@ -1,17 +1,28 @@
-# Version: v1.2.0
-# Description: Update dependencies for Ollama embeddings and multi-format ingestion
+# Version: v1.2.1
+# Description: Add system dependencies to ensure Ollama, PDF, PPTX, and HTML parsing work
 
 FROM python:3.11-slim
 
+# System deps for PDF, PPTX, HTML parsing, cryptography, etc.
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libxml2-dev \
+    libxslt1-dev \
+    libffi-dev \
+    libpq-dev \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Copy code
-COPY rag-api /app/rag_api
+# Copy project files for build
+COPY rag-api-v1/rag-api /app/rag_api
 COPY config /app/config
 COPY docs /app/docs
 COPY requirements.txt /app/
 
-# Install dependencies
+# Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
